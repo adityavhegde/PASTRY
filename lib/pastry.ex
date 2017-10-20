@@ -1,4 +1,7 @@
+import States
+
 defmodule Pastry do
+@b 4
 use GenServer
   #spawning actors
   def pastryInit(_, 0) do
@@ -19,6 +22,10 @@ use GenServer
             |> :crypto.hash(to_string(nodeCounter)) 
             |> Base.encode16() 
             |> String.to_atom
+    #initialize states
+    leafSet = States.initLeafSet(@b)
+    routingTable = States.initRoutingTable(@b)
+    neighborSet = States.initNeighborsSet(@b)
     {:ok, pid} = GenServer.start(__MODULE__, :createdNode, name: nodeId)
     #nodeId = :md5 |> :crypto.hash(:erlang.pid_to_list(pid)) |> Base.encode16() 
     :global.register_name(nodeId, pid)
@@ -42,7 +49,7 @@ use GenServer
   end
   #nearby node selected by the new node receives the join message
   def handle_cast({:join, key}, curState) do
-    IO.puts key
+    #IO.puts key
     { :noreply, curState}
   end
 
