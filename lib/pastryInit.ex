@@ -48,8 +48,10 @@ use GenServer
 
   def handle_call({:joinNetwork, nearbyNode, newNode}, from, currentState) do
     {leafSet, routingTable, neighborSet} = GenServer.call(nearbyNode, {:join, newNode})
-    #Todo: inform nodes in the stateTables that they need to change their states
 
+    Enum.each(routingTable, fn{map_key, map_val}->
+      routingTable[map_key] |> GenServer.cast({:add_new_joined_node, key})
+    end)
 
     {:reply, :joinedNetwork, currentState} #Todo: change this
   end
@@ -81,14 +83,34 @@ use GenServer
         {curr_genServer_name, node} = GenServer.whereis(self)
         row =  CommonPrefix.lcp(curr_genServer_name, key)
         {col, garbage} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
-        returned_routing_table = routingTable
-                                  |> Map.get({row, col})
-                                  |> GenServer.call({:join, key})
-                                  |> elem(1) #contains route map at this position
+
+        val_at_map = routingTable |> Map.get({row, col})
+
+        #returned_routing_table
+        returned_state = cond do
+          val_at_map == nil ->
+            ls  = Genserver.call(curr_genServer_name, {:final_node, key})
+            [ls, routingTable, neighborSet]
+          true ->
+            #pick nth row
+            returned_routing_table = routingTable
+                |> Map.keys()
+                |> Enum.reduce(%{}, fn({key_a, key_b}, acc) ->
+                  candidate_row = cond do
+                      key_a == row ->
+                          temp_map = %{{key_a, key_b} => routingTable[{key_a, key_b}]}
+                          acc = Map.merge(temp_map, acc)
+                      true -> true
+                    end
+                end)
+              [leafset, routingTable, neighborSet]
+          end
+        end
 
         #merge returned_routing_table into routingTable
         #Todo: test if this merge works fine
-        routingTable = Map.merge(routingTable, returned_routing_table)
+
+        routingTable = Map.merge(routingTable, returned_state(1))
         {leafset, routingTable, neighborSet}
     end
     #Todo: neighborSet ? when do we pick from this
@@ -110,18 +132,18 @@ use GenServer
         key < curr_genServer_name ->
           returned_ls_higher = Enum.slice(ls_higher, 0, 15) ++ [curr_genServer_name]
           ret = cond do
-            Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [key]
-            Enum.count(ls_lower) < 16 -> ls_lower + [key]
+            Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [Atom.to_string(key)]
+            Enum.count(ls_lower) < 16 -> ls_lower + [Atom.to_string(key)]
           end
           [[ls_lower, returned_ls_higher], [ret, ls_higher]]
 
         key > curr_genServer_name ->
           [returned_ls_lower, ret] = cond do
             Enum.count(ls_lower) == 16 ->
-              [Enum.slice(ls_lower, 1, 15) ++ [curr_genServer_name], ls_higher -- Enum.at(15) ++ [key]]
+              [Enum.slice(ls_lower, 1, 15) ++ [curr_genServer_name], ls_higher -- Enum.at(15) ++ [Atom.to_string(key)]]
 
             Enum.count(ls_lower) < 16 ->
-              [ls_lower ++ [curr_genServer_name], ls_higher ++ [key]]
+              [ls_lower ++ [curr_genServer_name], ls_higher ++ [Atom.to_string(key)]]
           end
           [[returned_ls_lower, ls_higher], [ls_lower, ret]]
       end
@@ -132,5 +154,27 @@ use GenServer
       currentState = {modified_curr_node_leafset, routingTable, neighborSet}
 
     {:reply, returned_leafset, currentState}
+  end
+
+  def handle_cast({:add_new_joined_node, key}, from, currentState) do
+      row =  CommonPrefix.lcp(curr_genServer_name, key)
+      {col, garbage} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
+
+      routingTable = elem(currentState, 1)
+      table_val = routingTable[{row, col}]
+
+      value_to_update = cond do
+        table_val == nil -> key
+        true -> Enum.random([table_val, key])
+      end
+
+      #Type conversion to string
+      value_to_update = Atom.to_string(value_to_update)
+
+      #inserts key, value if does not exist
+      routingTable = Map.update(routingTable, {row, col}, value_to_update, fn(curr_val) -> value_to_update end)
+      currentState = {elem(currentState, 0), routingTable, elem(currentState, 1)}
+
+      {:noreply, currentState}
   end
 end
