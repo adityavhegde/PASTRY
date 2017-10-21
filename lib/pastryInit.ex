@@ -20,12 +20,12 @@ use GenServer
             |> :crypto.hash(to_string(nodeCounter)) 
             |> Base.encode16() 
             |> String.to_atom
-    #initialize states
-    leafSet = []#States.initLeafSet(@b)
-    routingTable = %{}#States.initRoutingTable(@b)
-    neighborSet = []#States.initNeighborsSet(@b)
-    {:ok, pid} = GenServer.start(__MODULE__, {leafSet, routingTable, neighborSet}, name: nodeId)
-    #nodeId = :md5 |> :crypto.hash(:erlang.pid_to_list(pid)) |> Base.encode16() 
+    #initialize empty state
+    leafSetLeft = []
+    leafSetRight = []
+    routingTable = %{}
+    neighborSet = []
+    {:ok, pid} = GenServer.start(__MODULE__, {[leafSetLeft, leafSetRight], routingTable, neighborSet}, name: nodeId)
     :global.register_name(nodeId, pid)
     newNode = nodeId
   end
@@ -56,7 +56,12 @@ use GenServer
     {:noreply, curState}
   end
   #receive the message as the final node
-  def handle_cast({:finalNode, message}, curState) do
+  def handle_cast({:finalNode, message, key}, curState) do
+    IO.puts "reached final node"
     {:noreply, curState}
+  end
+  #receive the message to route it further
+  def handle_cast({:routing, message, key}, curState) do
+    PastryRoute.route("wow", key, curState)
   end
 end

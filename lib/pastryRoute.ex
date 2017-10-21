@@ -2,6 +2,7 @@ defmodule PastryRoute do
     use GenServer
     #routing algorithm
     def route(message, key, {[leafSetLeft, leafSetRight], routingTable, neighborSet}) do
+        IO.puts [message, key]
         lLow = Enum.min(leafSetRight)
         lHigh = Enum.max(leafSetLeft)
         #check for special case when leafest crosses over point 0 node ID
@@ -13,7 +14,7 @@ defmodule PastryRoute do
             key >= lLow and key <= lHigh ->
                 closestLeaf(leafSetRight++leafSetLeft, key) 
                 |> String.to_atom
-                |> GenServer.cast({:finalNode, message})
+                |> GenServer.cast({:finalNode, message, key})
             true ->
             #use the routing table
                 {name, _} = GenServer.whereis(self())
@@ -25,15 +26,16 @@ defmodule PastryRoute do
                     routingTable 
                     |> Map.get({l, dl})
                     |> String.to_atom
-                    |> GenServer.cast({:routing, message})
+                    |> GenServer.cast({:routing, message, key})
                 else 
+                    IO.puts "nothing found"
                     #rare case
-                    allUnion = (leafSetLeft ++ leafSetRight ++ Map.values(routingTable) ++ neighborSet)
-                                |> Enum.uniq
-                    rareCase(allUnion, l, name, key) 
-                    |> Enum.random
-                    |> String.to_atom
-                    |> GenServer.cast({:routing, message})
+                    #allUnion = (leafSetLeft ++ leafSetRight ++ Map.values(routingTable) ++ neighborSet)
+                    #            |> Enum.uniq
+                    #rareCase(allUnion, l, name, key) 
+                    #|> Enum.random
+                    #|> String.to_atom
+                    #|> GenServer.cast({:routing, message})
                 end
         end
     end
