@@ -49,6 +49,7 @@ use GenServer
   def handle_call({:joinNetwork, nearbyNode, newNode}, from, currentState) do
     {leafSet, routingTable, neighborSet} = GenServer.call(nearbyNode, {:join, newNode})
     #Todo: inform nodes in the stateTables that they need to change their states
+    
 
     {:reply, :joinedNetwork, currentState} #Todo: change this
   end
@@ -65,6 +66,7 @@ use GenServer
 
     #returned_val can be a map(routing table) or a list(leafSet, neighborSet)
     state_to_send = cond do
+      #Todo: IMP correct this condition
        Atom.to_string(key) <= highest_leaf and Atom.to_string(key) >= lowest_leaf ->
         index = PastryRoute.closestLeaf(leafSet, key)
         returned_leafset = leafSet
@@ -95,7 +97,40 @@ use GenServer
   end
 
   #handled when you finally reach Z or the destination node
+  #Leafset is a list of 2 lists lower and higher
+  #returned_leafset -> reply to caller
+  #modified_curr_node_leafset -> change to leafset of current node
   def handle_call({:final_node, key}, from, currentState) do
-    #Todo: leafset configurations for key
+    [ls_lower, ls_higher] = elem(currentState, 0)
+    {curr_genServer_name, node} = GenServer.whereis(self)
+
+    returned_leafset, modified_curr_node_leafset =
+      cond do
+         #Todo: IMP! write a function to do this
+        key < curr_genServer_name ->
+          returned_ls_higher = Enum.slice(ls_higher, 0, 15) ++ [curr_genServer_name]
+          ret = cond do
+            Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [key]
+            Enum.count(ls_lower) < 16 -> ls_lower + [key]
+          end
+          [ls_lower, returned_ls_higher], [ret, ls_higher]
+
+        key > curr_genServer_name ->
+          returned_ls_lower, ret = cond do
+            Enum.count(ls_lower) == 16 ->
+              Enum.slice(ls_lower, 1, 15) ++ [curr_genServer_name], ls_higher -- Enum.at(15) ++ [key]
+
+            Enum.count(ls_lower) < 16 ->
+              ls_lower ++ [curr_genServer_name], ls_higher ++ [key]
+          end
+          [returned_ls_lower, ls_higher], [ls_lower, ret]
+      end
+
+      routingTable = elem(currentState, 1)
+      neighborSet = elem(currentState, 2)
+
+      currentState = {modified_curr_node_leafset, routingTable, neighborSet}
+
+    {:reply, returned_leafset, currentState}
   end
 end
