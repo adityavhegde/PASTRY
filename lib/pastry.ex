@@ -1,9 +1,9 @@
-import States
-import PastryInit
-
 defmodule Pastry do
   def setInitialNetwork(numNodes) do
     PastryInit.pastryInit(numNodes)
+    Enum.each(:global.registered_names, fn(actor) ->
+      GenServer.cast(actor, :sendRequest)
+    end)
   end
   
   def main(args) do
@@ -19,9 +19,7 @@ defmodule Pastry do
                   |> Integer.parse(10) 
                   |> elem(0) 
 
-    #{:ok, serverPid} = GenServer.start(__MODULE__, server, name: :server)
-    #GenServer.call(serverPid, )
-    PastryInit.pastryInit(numNodes)
+    setInitialNetwork(numNodes)
     receive do
       :over ->
         true

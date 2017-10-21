@@ -21,10 +21,10 @@ use GenServer
             |> Base.encode16() 
             |> String.to_atom
     #initialize states
-    leafSet = States.initLeafSet(@b)
-    routingTable = States.initRoutingTable(@b)
-    neighborSet = States.initNeighborsSet(@b)
-    {:ok, pid} = GenServer.start(__MODULE__, :createdNode, name: nodeId)
+    leafSet = []#States.initLeafSet(@b)
+    routingTable = %{}#States.initRoutingTable(@b)
+    neighborSet = []#States.initNeighborsSet(@b)
+    {:ok, pid} = GenServer.start(__MODULE__, {leafSet, routingTable, neighborSet}, name: nodeId)
     #nodeId = :md5 |> :crypto.hash(:erlang.pid_to_list(pid)) |> Base.encode16() 
     :global.register_name(nodeId, pid)
     newNode = nodeId
@@ -41,13 +41,22 @@ use GenServer
   end
 
   #new node sends :join message to "assumed" nearby node
-  def handle_cast({:joinNetwork, nearbyNode, newNode}, currentState) do
+  def handle_cast({:joinNetwork, nearbyNode, newNode}, curState) do
     GenServer.cast(nearbyNode, {:join, newNode})
-    { :noreply, :joinedNetwork}
+    { :noreply, curState}
   end
   #nearby node selected by the new node receives the join message
   def handle_cast({:join, key}, curState) do
-    IO.puts key
     { :noreply, curState}
+  end
+  #send request form this node
+  def handle_cast(:sendRequest, curState) do
+    key =  2 * :math.pow(2,@b) |> round |> Utils.perm_rep
+    PastryRoute.route(key, curState)
+    {:noreply, curState}
+  end
+  #receive the message as the final node
+  def handle_cast({:finalNode, message}, curState) do
+    {:noreply, curState}
   end
 end
