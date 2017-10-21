@@ -18,4 +18,8 @@ defmodule PastryTest do
   test "common prefix: nothing matches" do
     assert CommonPrefix.lcp(:"cii", :"hiil") == ""
   end
+
+  test "commin prefix: both strings are empty" do
+    assert CommonPrefix.lcp(:"", :"") == ""
+  end
 end
