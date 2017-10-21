@@ -52,7 +52,7 @@ use GenServer
   #send request form this node
   def handle_cast(:sendRequest, curState) do
     key =  2 * :math.pow(2,@b) |> round |> Utils.perm_rep
-    PastryRoute.route(key, curState)
+    PastryRoute.route("wow", key, curState)
     {:noreply, curState}
   end
   #receive the message as the final node
