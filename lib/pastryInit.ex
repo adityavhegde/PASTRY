@@ -50,7 +50,7 @@ use GenServer
     {leafSet, routingTable, neighborSet} = GenServer.call(nearbyNode, {:join, newNode})
     #Todo: inform nodes in the stateTables that they need to change their states
 
-    {:noreply, :joinedNetwork} #Todo: change this
+    {:reply, :joinedNetwork, currentState} #Todo: change this
   end
 
   #The very first node in the network receives join
@@ -59,39 +59,42 @@ use GenServer
   #nearby node selected by the new node receives the join message
   def handle_call({:join, key}, from, currentState) do
     {leafSet, routingTable, neighborSet} = currentState
-    state_to_send = {}
 
-    #Todo
-    #if is in the leafset range-> route0
-    lowest_leaf = leafSet |> Enum.min()
-    highest_leaf = leafSet |> Enum.max()
+    lowest_leaf =  Enum.min(leafSet)
+    highest_leaf = Enum.max(leafSet)
 
-    return_val = cond do
+    #returned_val can be a map(routing table) or a list(leafSet, neighborSet)
+    state_to_send = cond do
        Atom.to_string(key) <= highest_leaf and Atom.to_string(key) >= lowest_leaf ->
         index = PastryRoute.closestLeaf(leafSet, key)
-        returned_leafset = Enum.at(leafSet, index) |>  GenServer.call({:final_node, key})
+        returned_leafset = leafSet
+                             |> Enum.at(index)
+                             |> GenServer.call({:final_node, key})
+                             |> elem(0)
 
+         {leafset, routingTable, neighborSet}
       true ->
         #Go to routing table
         #return a tuple with {key1, key2, val}
         {curr_genServer_name, node} = GenServer.whereis(self)
-        row =  curr_genServer_name |> CommonPrefix.lcp(key)
-        col = Atom.to_string(key) |> String.at(row + 1)
+        row =  CommonPrefix.lcp(curr_genServer_name, key)
+        {col, garbage} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
         returned_routing_table = routingTable
-          |> Map.get({row, col})
-          |> GenServer.call({:join, key})
+                                  |> Map.get({row, col})
+                                  |> GenServer.call({:join, key})
+                                  |> elem(1) #contains route map at this position
 
-      #Todo: select element; do a GenServer.call to that element
-      #We expect genserver calls to return states
-
+        #merge returned_routing_table into routingTable
+        #Todo: test if this merge works fine
+        routingTable = Map.merge(routingTable, returned_routing_table)
+        {leafset, routingTable, neighborSet}
     end
-    #else return the matching set from the routing table
+    #Todo: neighborSet ? when do we pick from this
 
-
-    #Todo: send states to the calling process
     { :reply, state_to_send, currentState}
   end
 
+  #handled when you finally reach Z or the destination node
   def handle_call({:final_node, key}, from, currentState) do
     #Todo: leafset configurations for key
   end
