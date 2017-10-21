@@ -49,7 +49,7 @@ use GenServer
   def handle_call({:joinNetwork, nearbyNode, newNode}, from, currentState) do
     {leafSet, routingTable, neighborSet} = GenServer.call(nearbyNode, {:join, newNode})
     #Todo: inform nodes in the stateTables that they need to change their states
-    
+
 
     {:reply, :joinedNetwork, currentState} #Todo: change this
   end
@@ -96,15 +96,15 @@ use GenServer
     { :reply, state_to_send, currentState}
   end
 
-  #handled when you finally reach Z or the destination node
-  #Leafset is a list of 2 lists lower and higher
-  #returned_leafset -> reply to caller
-  #modified_curr_node_leafset -> change to leafset of current node
+  # Handled when you finally reach Z or the destination node
+  # Leafset is a list of 2 lists lower and higher
+  # returned_leafset -> reply to caller
+  # modified_curr_node_leafset -> change to leafset of current node
   def handle_call({:final_node, key}, from, currentState) do
     [ls_lower, ls_higher] = elem(currentState, 0)
     {curr_genServer_name, node} = GenServer.whereis(self)
 
-    returned_leafset, modified_curr_node_leafset =
+    [returned_leafset, modified_curr_node_leafset] =
       cond do
          #Todo: IMP! write a function to do this
         key < curr_genServer_name ->
@@ -113,17 +113,17 @@ use GenServer
             Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [key]
             Enum.count(ls_lower) < 16 -> ls_lower + [key]
           end
-          [ls_lower, returned_ls_higher], [ret, ls_higher]
+          [[ls_lower, returned_ls_higher], [ret, ls_higher]]
 
         key > curr_genServer_name ->
-          returned_ls_lower, ret = cond do
+          [returned_ls_lower, ret] = cond do
             Enum.count(ls_lower) == 16 ->
-              Enum.slice(ls_lower, 1, 15) ++ [curr_genServer_name], ls_higher -- Enum.at(15) ++ [key]
+              [Enum.slice(ls_lower, 1, 15) ++ [curr_genServer_name], ls_higher -- Enum.at(15) ++ [key]]
 
             Enum.count(ls_lower) < 16 ->
-              ls_lower ++ [curr_genServer_name], ls_higher ++ [key]
+              [ls_lower ++ [curr_genServer_name], ls_higher ++ [key]]
           end
-          [returned_ls_lower, ls_higher], [ls_lower, ret]
+          [[returned_ls_lower, ls_higher], [ls_lower, ret]]
       end
 
       routingTable = elem(currentState, 1)
