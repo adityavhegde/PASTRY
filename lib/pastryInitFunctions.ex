@@ -29,20 +29,21 @@ defmodule PastryInitFunctions do
   end
 
 #function for joining new node to the network
-  def newJoin(currentState, routingTable, neighborSet, curr_genServer_name, key) do
-    [ls_lower, ls_higher] = elem(currentState, 0)
+  def newJoin(currentState, curr_genServer_name, key) do
+    {[ls_lower, ls_higher], routingTable, neighborSet} = currentState
+    key_string = Atom.to_string(key)
     cond do
       Enum.count(ls_lower) == 0 and Enum.count(ls_higher) == 0 ->
         row =  curr_genServer_name |> CommonPrefix.lcp(key)
-        {col, _} = Atom.to_string(key) |> String.at(row) |> Integer.parse(16)
+        {col, _} = key_string |> String.at(row) |> Integer.parse(16)
         map_key = {row, col}
-        currentState = {[[Atom.to_string(key)],[Atom.to_string(key)]], elem(currentState,1), elem(currentState, 2)}
+        currentState = {[[key_string],[key_string]], elem(currentState,1), elem(currentState, 2)}
 
         state_to_send = {[[Atom.to_string(curr_genServer_name)],[Atom.to_string(curr_genServer_name)]],
                         %{map_key => Atom.to_string(curr_genServer_name)}, []}
         [state_to_send, currentState]
       #Todo: IMP correct this condition
-      Atom.to_string(key) <= Enum.max(ls_higher) and Atom.to_string(key) >= Enum.min(ls_lower) ->
+      key_string <= Enum.max(ls_higher) and key_string >= Enum.min(ls_lower) ->
           returned_leafset = [ls_lower,ls_higher]
                             |>PastryRoute.closestLeaf(key)
                             |> GenServer.call({:final_node, key})
@@ -50,11 +51,13 @@ defmodule PastryInitFunctions do
         state_to_send = {returned_leafset, %{}, []}
         [state_to_send, currentState]
       true ->
+        IO.puts "in here"
+        IO.inspect routingTable
         # Go to routing table
         # Returns a state
         #{curr_genServer_name, _} = GenServer.whereis(self())
         row =  curr_genServer_name |> CommonPrefix.lcp(key)
-        {col, _} = Atom.to_string(key) |> String.at(row) |> Integer.parse(16)
+        {col, _} = key_string |> String.at(row) |> Integer.parse(16)
 
         val_at_map = routingTable |> Map.get({row, col})
 
@@ -66,7 +69,7 @@ defmodule PastryInitFunctions do
             [ls,_]  = PastryInitFunctions.finalNodeComp(ls_lower, ls_higher, key, curr_genServer_name)
             #GenServer.call(curr_genServer_name, {:final_node, key, curr_genServer_name})
             # fix attempt: routing table
-            val = Atom.to_string(key)
+            val = key_string
             temp = %{{row, col}=> val}
             temp = Map.merge(routingTable, temp)
             {ls, temp, neighborSet}

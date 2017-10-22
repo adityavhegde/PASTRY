@@ -42,7 +42,8 @@ use GenServer
   #This call is made from the main process
   def sendJoinPastry(newNode, nearbyNode) do
     #IO.inspect :global.registered_names
-    GenServer.call(newNode, {:joinNetwork, nearbyNode, newNode}, 10000)
+    #IO.inspect :sys.get_state(nearbyNode)
+    GenServer.call(newNode, {:joinNetwork, newNode, nearbyNode})
   end
 
   #The very first node in the network receives join
@@ -68,12 +69,11 @@ use GenServer
   # new node sends :join message to "assumed" nearby node
   # 1. Receives state tables
   # 2. Send message to all nodes in routing table. These nodes will then update their states
-  def handle_call({:joinNetwork, nearbyNode, newNode}, _, _) do
+  def handle_call({:joinNetwork, newNode, nearbyNode}, _, _) do
     #1
-    received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode}, 10000)
+    received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode})
     #2
     routing_table = received_state |> elem(1)
-    #IO.inspect received_state
     routing_table
     |> Map.values()
     |> Enum.each(fn(nodeId)->
@@ -88,7 +88,7 @@ use GenServer
     #updated_currentState is not always updated. It is only update when there is only 1 node in network,
     #and some new node joins the network
     #Other updates to state(routing table), are performed in the end after newly joined node receives state tables
-    [state_to_send, updated_currentState] = PastryInitFunctions.newJoin(currentState, routingTable, neighborSet, curr_genServer_name, key)
+    [state_to_send, updated_currentState] = PastryInitFunctions.newJoin(currentState, curr_genServer_name, key)
     #Todo: neighborSet ? when do we pick from this
     {:reply, state_to_send, updated_currentState}
   end
