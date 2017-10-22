@@ -1,8 +1,10 @@
 defmodule PastryRoute do
     use GenServer
     #routing algorithm
-    def route(message, key, {[leafSetLeft, leafSetRight], routingTable, neighborSet}) do
+    def route(message, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable, neighborSet}) do
         #IO.puts [message, key]
+        IO.inspect leafSetLeft
+        IO.inspect leafSetRight
         lLow = Enum.min(leafSetRight)
         lHigh = Enum.max(leafSetLeft)
         #check for special case when leafest crosses over point 0 node ID
@@ -17,16 +19,17 @@ defmodule PastryRoute do
                 |> GenServer.cast({:finalNode, message, key})
             true ->
             #use the routing table
-                {name, _} = GenServer.whereis(self())
+                #{name, _} = GenServer.whereis(self())
+                name = curr_genServer_name
                 #get length of prefix shared among and use it to access row of routing table
                 l = name |> CommonPrefix.lcp(String.to_atom(key))
                 #get value of l's digit in key
-                dl = name |> String.codepoints |> Enum.at(l)
+                dl = name |> Atom.to_string |> String.codepoints |> Enum.at(l)
                 if Map.has_key?(routingTable, {l, dl}) do
                     routingTable 
                     |> Map.get({l, dl})
                     |> String.to_atom
-                    |> GenServer.cast({:routing, message, key})
+                    |> GenServer.cast({:routing, curr_genServer_name, message, key})
                 else 
                     IO.puts "nothing found"
                     #rare case
