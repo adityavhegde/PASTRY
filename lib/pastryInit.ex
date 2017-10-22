@@ -42,7 +42,7 @@ use GenServer
   #This call is made from the main process
   def sendJoinPastry(newNode, nearbyNode) do
     #IO.inspect :global.registered_names
-    GenServer.call(newNode, {:joinNetwork, nearbyNode, newNode})
+    GenServer.call(newNode, {:joinNetwork, nearbyNode, newNode}, 10000)
   end
 
   #The very first node in the network receives join
@@ -70,27 +70,25 @@ use GenServer
   # 2. Send message to all nodes in routing table. These nodes will then update their states
   def handle_call({:joinNetwork, nearbyNode, newNode}, _, _) do
     #1
-    received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode})
+    received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode}, 10000)
     #2
     routing_table = received_state |> elem(1)
+    IO.inspect received_state
     routing_table 
     |> Map.values() 
     |> Enum.each(fn(nodeId)->
-      nodeId 
-      |> String.to_atom 
-      |> GenServer.cast({:add_new_joined_node, newNode, nodeId})
+      #IO.inspect nodeId
+      nodeId = nodeId |> String.to_atom 
+      GenServer.cast(nodeId, {:add_new_joined_node, newNode, nodeId})
     end)
     {:reply, :joinedNetwork, received_state}
   end
   def handle_call({:join, key, curr_genServer_name}, _, currentState) do
     {leafSet, routingTable, neighborSet} = currentState
     [ls_lower, ls_higher] = leafSet
-
     #returned_val can be a map(routing table) or a list(leafSet, neighborSet)
     state_to_send = PastryInitFunctions.newJoin(ls_lower, ls_higher, routingTable, neighborSet, curr_genServer_name, key)
-
     #Todo: neighborSet ? when do we pick from this
-
     {:reply, state_to_send, currentState}
   end
 
@@ -109,10 +107,10 @@ use GenServer
     {:reply, returned_leafset, currentState}
   end
 
-  def handle_cast({:add_new_joined_node, key, curr_genServer_name}, _, currentState) do
+  def handle_cast({:add_new_joined_node, key, curr_genServer_name}, currentState) do
       #{curr_genServer_name, _} = GenServer.whereis(self())
-      row =  curr_genServer_name |> String.to_atom |> CommonPrefix.lcp(key)
-      {col, _} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
+      row =  curr_genServer_name |> CommonPrefix.lcp(key)
+      {col, _} = Atom.to_string(key) |> String.at(row) |> Integer.parse(16)
       routingTable = elem(currentState, 1)
       table_val = routingTable[{row, col}]
       value_to_update = cond do
