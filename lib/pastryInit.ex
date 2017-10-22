@@ -81,6 +81,12 @@ use GenServer
       nodeId = nodeId |> String.to_atom
       GenServer.cast(nodeId, {:add_new_joined_node, newNode, nodeId})
     end)
+
+    global_reg_to_list = :global.registered_names
+    populated_map = PastryInitFunctions.populate_routing_table(routing_table, newNode, global_reg_to_list -- [newNode])
+    routing_table = Map.merge(routing_table, populated_map)
+    received_state = {elem(received_state, 0), routing_table, elem(received_state, 1)}
+
     {:reply, :joinedNetwork, received_state}
   end
   def handle_call({:join, key, curr_genServer_name}, _, currentState) do
