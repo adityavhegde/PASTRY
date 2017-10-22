@@ -87,7 +87,10 @@ use GenServer
     {leafSet, routingTable, neighborSet} = currentState
     [ls_lower, ls_higher] = leafSet
     #returned_val can be a map(routing table) or a list(leafSet, neighborSet)
-    state_to_send = PastryInitFunctions.newJoin(ls_lower, ls_higher, routingTable, neighborSet, curr_genServer_name, key)
+    #updated_currentState is not always updated. It is only update when there is only 1 node in network,
+    #and some new node joins the network
+    #Other updates to state(routing table), are performed in the end after newly joined node receives state tables
+    [state_to_send, updated_currentState] = PastryInitFunctions.newJoin(ls_lower, ls_higher, routingTable, neighborSet, curr_genServer_name, key)
     #Todo: neighborSet ? when do we pick from this
     {:reply, state_to_send, currentState}
   end
