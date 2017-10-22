@@ -48,9 +48,9 @@ use GenServer
 
   def handle_call({:joinNetwork, nearbyNode, newNode}, from, currentState) do
     {leafSet, routingTable, neighborSet} = GenServer.call(nearbyNode, {:join, newNode})
-
-    Enum.each(routingTable, fn{map_key, map_val}->
-      routingTable[map_key] |> GenServer.cast({:add_new_joined_node, key})
+    #todo: update leafset
+    routingTable |> Map.keys() |> Enum.each(fn{map_key}->
+      routingTable[map_key] |> GenServer.cast({:add_new_joined_node, newNode})
     end)
 
     {:reply, :joinedNetwork, currentState} #Todo: change this
@@ -70,77 +70,83 @@ use GenServer
     state_to_send = cond do
       #Todo: IMP correct this condition
        Atom.to_string(key) <= highest_leaf and Atom.to_string(key) >= lowest_leaf ->
-        index = PastryRoute.closestLeaf(leafSet, key)
-        returned_leafset = leafSet
-                             |> Enum.at(index)
+        returned_leafset = PastryRoute.closestLeaf(leafSet, key)
                              |> GenServer.call({:final_node, key})
                              |> elem(0)
 
-         {leafset, routingTable, neighborSet}
+         {returned_leafset, %{}, []}
       true ->
-        #Go to routing table
-        #return a tuple with {key1, key2, val}
+        # Go to routing table
+        # Returns a state
         {curr_genServer_name, node} = GenServer.whereis(self)
         row =  CommonPrefix.lcp(curr_genServer_name, key)
         {col, garbage} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
 
         val_at_map = routingTable |> Map.get({row, col})
 
-        #returned_routing_table
+        # returned_routing_table
+        # Route the received call
+        # If no entry exists in the routing table, stop at this node by returning leafset
         returned_state = cond do
           val_at_map == nil ->
             ls  = Genserver.call(curr_genServer_name, {:final_node, key})
-            [ls, routingTable, neighborSet]
+            [ls, %{}, neighborSet]
           true ->
             #pick nth row
-            returned_routing_table = routingTable
+            returned_routing_table = Genserver.call(val_at_map, {:join, key}) |> elem(1)
+
+            curr_gen_s_routing_rows
+              = routingTable
                 |> Map.keys()
                 |> Enum.reduce(%{}, fn({key_a, key_b}, acc) ->
                   candidate_row = cond do
                       key_a == row ->
                           temp_map = %{{key_a, key_b} => routingTable[{key_a, key_b}]}
                           acc = Map.merge(temp_map, acc)
-                      true -> true
+                      true -> acc = Map.merge(%{nil => nil}, acc)
                     end
                 end)
-              [leafset, routingTable, neighborSet]
-          end
-        end
 
-        #merge returned_routing_table into routingTable
-        #Todo: test if this merge works fine
+              curr_gen_s_routing_rows =
+                curr_gen_s_routing_rows
+                |> Map.to_list
+                |> Enum.reject(fn(tup) -> elem(tup, 0) == nil end)
+                |> Enum.into(%{})
 
-        routingTable = Map.merge(routingTable, returned_state(1))
-        {leafset, routingTable, neighborSet}
-    end
+              temp = Map.merge(returned_routing_table, curr_gen_s_routing_rows)
+              [leafset, temp, neighborSet]
+        end #end of returned_state cond-do
+    end #end of state_to_send cond-do
+
     #Todo: neighborSet ? when do we pick from this
 
-    { :reply, state_to_send, currentState}
+    {:reply, state_to_send, currentState}
   end
 
   # Handled when you finally reach Z or the destination node
   # Leafset is a list of 2 lists lower and higher
   # returned_leafset -> reply to caller
   # modified_curr_node_leafset -> change to leafset of current node
+  # Returns of type leafset
   def handle_call({:final_node, key}, from, currentState) do
     [ls_lower, ls_higher] = elem(currentState, 0)
-    {curr_genServer_name, node} = GenServer.whereis(self)
+    {curr_genServer_name, _} = GenServer.whereis(self)
 
     [returned_leafset, modified_curr_node_leafset] =
       cond do
          #Todo: IMP! write a function to do this
-        key < curr_genServer_name ->
+        Atom.to_string(key) < Atom.to_string(curr_genServer_name) ->
           returned_ls_higher = Enum.slice(ls_higher, 0, 15) ++ [curr_genServer_name]
           ret = cond do
             Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [Atom.to_string(key)]
-            Enum.count(ls_lower) < 16 -> ls_lower + [Atom.to_string(key)]
+            Enum.count(ls_lower) < 16 -> ls_lower ++ [Atom.to_string(key)]
           end
           [[ls_lower, returned_ls_higher], [ret, ls_higher]]
 
-        key > curr_genServer_name ->
+        Atom.to_string(key) > Atom.to_string(curr_genServer_name) ->
           [returned_ls_lower, ret] = cond do
             Enum.count(ls_lower) == 16 ->
-              [Enum.slice(ls_lower, 1, 15) ++ [curr_genServer_name], ls_higher -- Enum.at(15) ++ [Atom.to_string(key)]]
+              [Enum.slice(ls_lower, 1, 16) ++ [curr_genServer_name], (ls_higher -- Enum.at(ls_higher,15)) ++ [Atom.to_string(key)]]
 
             Enum.count(ls_lower) < 16 ->
               [ls_lower ++ [curr_genServer_name], ls_higher ++ [Atom.to_string(key)]]
@@ -157,8 +163,10 @@ use GenServer
   end
 
   def handle_cast({:add_new_joined_node, key}, from, currentState) do
+      {curr_genServer_name, _} = GenServer.whereis(self)
+
       row =  CommonPrefix.lcp(curr_genServer_name, key)
-      {col, garbage} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
+      {col, _} = Atom.to_string(key) |> String.at(row + 1) |> Integer.parse(16)
 
       routingTable = elem(currentState, 1)
       table_val = routingTable[{row, col}]
