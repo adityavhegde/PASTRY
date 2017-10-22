@@ -29,7 +29,7 @@ defmodule PastryInitFunctions do
   end
 
 #function for joining new node to the network
-  def newJoin(ls_lower, ls_higher, routingTable, neighborSet, curr_genServer_name, key) do
+  def newJoin(currentState, routingTable, neighborSet, curr_genServer_name, key) do
     [ls_lower, ls_higher] = elem(currentState, 0)
 
     cond do
