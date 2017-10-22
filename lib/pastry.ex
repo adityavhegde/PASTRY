@@ -1,6 +1,7 @@
 defmodule Pastry do
   def setInitialNetwork(numNodes) do
     PastryInit.pastryInit(numNodes)
+    IO.inspect :global.registered_names
     Enum.each(:global.registered_names, fn(actor) ->
       send actor, :sendRequest
       #GenServer.cast(actor, :sendRequest)
