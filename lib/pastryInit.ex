@@ -148,10 +148,14 @@ use GenServer
         Atom.to_string(key) > Atom.to_string(curr_genServer_name) ->
           [returned_ls_lower, ret] = cond do
             Enum.count(ls_lower) == 16 ->
-              [Enum.slice(ls_lower, 1, 16) ++ [curr_genServer_name]|> Enum.sort(), (ls_higher -- Enum.at(ls_higher,15)) ++ [Atom.to_string(key)]|> Enum.sort()]
+              left = Enum.slice(ls_lower, 1, 16) ++ [curr_genServer_name]|> Enum.sort()
+              right = (ls_higher -- Enum.at(ls_higher,15)) ++ [Atom.to_string(key)]|> Enum.sort()
+              [left, right]
 
             Enum.count(ls_lower) < 16 ->
-              [ls_lower ++ [curr_genServer_name]|> Enum.sort(), ls_higher ++ [Atom.to_string(key)]|> Enum.sort()]
+              left = ls_lower ++ [curr_genServer_name]|> Enum.sort()
+              right = ls_higher ++ [Atom.to_string(key)]|> Enum.sort()
+              [left, right]
           end
           [[returned_ls_lower, ls_higher], [ls_lower, ret]]
       end
