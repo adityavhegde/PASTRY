@@ -14,7 +14,7 @@ use GenServer
     #assumption: the newly spawned process is closer to the previously spawned
     newNode = spawnProcess(numNodes)
     sendJoinPastry(newNode, nearbyNode)
-    newNode |> pastryInit(numNodes-1)
+    nearbyNode |> pastryInit(numNodes-1)
   end
 
   def spawnProcess(nodeCounter) do
@@ -90,7 +90,7 @@ use GenServer
     #Other updates to state(routing table), are performed in the end after newly joined node receives state tables
     [state_to_send, updated_currentState] = PastryInitFunctions.newJoin(currentState, routingTable, neighborSet, curr_genServer_name, key)
     #Todo: neighborSet ? when do we pick from this
-    {:reply, state_to_send, currentState}
+    {:reply, state_to_send, updated_currentState}
   end
 
   # Handled when you finally reach Z or the destination node
@@ -100,7 +100,9 @@ use GenServer
   # Returns of type leafset
   def handle_call({:final_node, key, curr_genServer_name}, _, currentState) do
     #{curr_genServer_name, _} = GenServer.whereis(self())
-    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(currentState, key, curr_genServer_name)
+    {leafSet,_,_} = currentState
+    [ls_lower, ls_higher] =leafSet
+    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(ls_lower, ls_higher, key, curr_genServer_name)
     routingTable = elem(currentState, 1)
     neighborSet = elem(currentState, 2)
     currentState = {modified_curr_node_leafset, routingTable, neighborSet}
@@ -114,11 +116,9 @@ use GenServer
       routingTable = elem(currentState, 1)
       table_val = routingTable[{row, col}]
       value_to_update = cond do
-        table_val == nil -> key
+        table_val == nil -> Atom.to_string(key)
         true -> Enum.random([table_val, key])
       end
-      #Type conversion to string
-      value_to_update = Atom.to_string(value_to_update)
       #inserts key, value if does not exist
       routingTable = Map.update(routingTable, {row, col}, value_to_update, fn(curr_val) -> value_to_update end)
       currentState = {elem(currentState, 0), routingTable, elem(currentState, 1)}

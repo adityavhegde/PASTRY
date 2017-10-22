@@ -31,7 +31,6 @@ defmodule PastryInitFunctions do
 #function for joining new node to the network
   def newJoin(currentState, routingTable, neighborSet, curr_genServer_name, key) do
     [ls_lower, ls_higher] = elem(currentState, 0)
-
     cond do
       Enum.count(ls_lower) == 0 and Enum.count(ls_higher) == 0 ->
         row =  curr_genServer_name |> CommonPrefix.lcp(key)
@@ -68,10 +67,13 @@ defmodule PastryInitFunctions do
             #GenServer.call(curr_genServer_name, {:final_node, key, curr_genServer_name})
             # fix attempt: routing table
             val = Atom.to_string(key)
-            {ls, %{{row, col}=> val}, neighborSet}
+            temp = %{{row, col}=> val}
+            temp = Map.merge(routingTable, temp)
+            {ls, temp, neighborSet}
+            #{ls, %{{row, col}=> val}, neighborSet}
           true ->
             #pick nth row
-            returned_routing_table = GenServer.call(val_at_map, {:join, key}) |> elem(1)
+            returned_routing_table = val_at_map |> String.to_atom |> GenServer.call({:join, key, curr_genServer_name}) |> elem(1)
 
             curr_gen_s_routing_rows
               = routingTable

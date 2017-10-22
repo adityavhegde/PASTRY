@@ -3,11 +3,11 @@ defmodule PastryRoute do
     #routing algorithm
     def route(message, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable, neighborSet}) do
         #IO.puts [message, key]
-        IO.inspect leafSetLeft
-        IO.inspect leafSetRight
+        #IO.inspect leafSetLeft
+        #IO.inspect leafSetRight
         #lLow = Enum.min(leafSetRight)
         #lHigh = Enum.max(leafSetLeft)
-        [lLow, lHigh] = Enum.min_max(leafSetLeft++leafSetRight)
+        {lLow, lHigh} = Enum.min_max(leafSetLeft++leafSetRight)
         #check for special case when leafest crosses over point 0 node ID
         cond do 
             lLow > lHigh and ((key <= lLow and key <= lHigh) or (key >= lLow and key >= lHigh)) ->
