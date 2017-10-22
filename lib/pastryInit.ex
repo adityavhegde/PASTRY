@@ -44,16 +44,18 @@ use GenServer
     GenServer.call(newNode, {:joinNetwork, nearbyNode, newNode})
   end
 
-  #new node sends :join message to "assumed" nearby node
-
+  # new node sends :join message to "assumed" nearby node
+  # 1. Receives state tables
+  # 2. Send message to all nodes in routing table. These nodes will then update their states
   def handle_call({:joinNetwork, nearbyNode, newNode}, from, currentState) do
-    {leafSet, routingTable, neighborSet} = GenServer.call(nearbyNode, {:join, newNode})
-    #todo: update leafset
-    routingTable |> Map.keys() |> Enum.each(fn{map_key}->
+    #1
+    received_state_tables = GenServer.call(nearbyNode, {:join, newNode})
+    #2
+    received_state_tables |> elem(1) |> Map.keys() |> Enum.each(fn{map_key}->
       routingTable[map_key] |> GenServer.cast({:add_new_joined_node, newNode})
     end)
 
-    {:reply, :joinedNetwork, currentState} #Todo: change this
+    {:reply, :joinedNetwork, received_state_tables} #Todo: change this
   end
 
   #The very first node in the network receives join
