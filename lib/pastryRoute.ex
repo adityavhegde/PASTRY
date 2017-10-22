@@ -2,7 +2,7 @@ defmodule PastryRoute do
     use GenServer
     #routing algorithm
     def route(message, key, {[leafSetLeft, leafSetRight], routingTable, neighborSet}) do
-        IO.puts [message, key]
+        #IO.puts [message, key]
         lLow = Enum.min(leafSetRight)
         lHigh = Enum.max(leafSetLeft)
         #check for special case when leafest crosses over point 0 node ID
