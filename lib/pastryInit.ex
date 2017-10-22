@@ -70,7 +70,7 @@ use GenServer
   def handle_cast({:routing, message, key}, curState) do
     PastryRoute.route(message, key, curState)
   end
-  
+
   # new node sends :join message to "assumed" nearby node
   # 1. Receives state tables
   # 2. Send message to all nodes in routing table. These nodes will then update their states
@@ -87,13 +87,14 @@ use GenServer
   def handle_call({:join, key}, _, currentState) do
     {leafSet, routingTable, neighborSet} = currentState
 
-    lowest_leaf =  Enum.min(leafSet)
-    highest_leaf = Enum.max(leafSet)
-
     #returned_val can be a map(routing table) or a list(leafSet, neighborSet)
     state_to_send = cond do
+      Enum.count(leafSet) == 0 ->
+        {curr_genServer_name, _} = GenServer.whereis(self())
+        returned_leafset = curr_genServer_name |> GenServer.call({:final_node, key})
+        {returned_leafset, %{}, []}
       #Todo: IMP correct this condition
-       Atom.to_string(key) <= highest_leaf and Atom.to_string(key) >= lowest_leaf ->
+       Atom.to_string(key) <= Enum.max(leafSet) and Atom.to_string(key) >= Enum.min(leafSet) ->
         returned_leafset = PastryRoute.closestLeaf(leafSet, key)
                              |> GenServer.call({:final_node, key})
                              |> elem(0)
