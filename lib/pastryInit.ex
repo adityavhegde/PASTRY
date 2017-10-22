@@ -14,7 +14,7 @@ use GenServer
     #assumption: the newly spawned process is closer to the previously spawned
     newNode = spawnProcess(numNodes)
     sendJoinPastry(newNode, nearbyNode)
-    newNode |> pastryInit(numNodes-1)
+    nearbyNode |> pastryInit(numNodes-1)
   end
 
   def spawnProcess(nodeCounter) do
@@ -73,7 +73,7 @@ use GenServer
     received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode}, 10000)
     #2
     routing_table = received_state |> elem(1)
-    IO.inspect received_state
+    #IO.inspect received_state
     routing_table
     |> Map.values()
     |> Enum.each(fn(nodeId)->
@@ -106,7 +106,9 @@ use GenServer
   # Returns of type leafset
   def handle_call({:final_node, key, curr_genServer_name}, _, currentState) do
     #{curr_genServer_name, _} = GenServer.whereis(self())
-    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(currentState, key, curr_genServer_name)
+    {leafSet,_,_} = currentState
+    [ls_lower, ls_higher] =leafSet
+    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(ls_lower, ls_higher, key, curr_genServer_name)
     routingTable = elem(currentState, 1)
     neighborSet = elem(currentState, 2)
     currentState = {modified_curr_node_leafset, routingTable, neighborSet}
@@ -120,11 +122,9 @@ use GenServer
       routingTable = elem(currentState, 1)
       table_val = routingTable[{row, col}]
       value_to_update = cond do
-        table_val == nil -> key
+        table_val == nil -> Atom.to_string(key)
         true -> Enum.random([table_val, key])
       end
-      #Type conversion to string
-      value_to_update = Atom.to_string(value_to_update)
       #inserts key, value if does not exist
       routingTable = Map.update(routingTable, {row, col}, value_to_update, fn(curr_val) -> value_to_update end)
       currentState = {elem(currentState, 0), routingTable, elem(currentState, 1)}
