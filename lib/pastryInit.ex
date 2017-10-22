@@ -138,20 +138,20 @@ use GenServer
       cond do
          #Todo: IMP! write a function to do this
         Atom.to_string(key) < Atom.to_string(curr_genServer_name) ->
-          returned_ls_higher = Enum.slice(ls_higher, 0, 15) ++ [curr_genServer_name]
+          returned_ls_higher = Enum.slice(ls_higher, 0, 15) ++ [curr_genServer_name]|> Enum.sort()
           ret = cond do
-            Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [Atom.to_string(key)]
-            Enum.count(ls_lower) < 16 -> ls_lower ++ [Atom.to_string(key)]
+            Enum.count(ls_lower) == 16 -> tl(ls_lower) ++ [Atom.to_string(key)] |> Enum.sort()
+            Enum.count(ls_lower) < 16 -> ls_lower ++ [Atom.to_string(key)] |> Enum.sort()
           end
           [[ls_lower, returned_ls_higher], [ret, ls_higher]]
 
         Atom.to_string(key) > Atom.to_string(curr_genServer_name) ->
           [returned_ls_lower, ret] = cond do
             Enum.count(ls_lower) == 16 ->
-              [Enum.slice(ls_lower, 1, 16) ++ [curr_genServer_name], (ls_higher -- Enum.at(ls_higher,15)) ++ [Atom.to_string(key)]]
+              [Enum.slice(ls_lower, 1, 16) ++ [curr_genServer_name]|> Enum.sort(), (ls_higher -- Enum.at(ls_higher,15)) ++ [Atom.to_string(key)]|> Enum.sort()]
 
             Enum.count(ls_lower) < 16 ->
-              [ls_lower ++ [curr_genServer_name], ls_higher ++ [Atom.to_string(key)]]
+              [ls_lower ++ [curr_genServer_name]|> Enum.sort(), ls_higher ++ [Atom.to_string(key)]|> Enum.sort()]
           end
           [[returned_ls_lower, ls_higher], [ls_lower, ret]]
       end
