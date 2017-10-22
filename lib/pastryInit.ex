@@ -91,8 +91,8 @@ use GenServer
     state_to_send = cond do
       Enum.count(leafSet) == 0 ->
         {curr_genServer_name, _} = GenServer.whereis(self())
-        returned_leafset = curr_genServer_name |> GenServer.call({:final_node, key})
-        {returned_leafset, %{}, []}
+        currentState = {[Atom.to_string(key)], routingTable, neighborSet}
+        {[Atom.to_string(curr_genServer_name)], %{}, []}
       #Todo: IMP correct this condition
        Atom.to_string(key) <= Enum.max(leafSet) and Atom.to_string(key) >= Enum.min(leafSet) ->
         returned_leafset = PastryRoute.closestLeaf(leafSet, key)
