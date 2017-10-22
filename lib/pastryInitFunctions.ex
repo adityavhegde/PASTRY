@@ -30,20 +30,26 @@ defmodule PastryInitFunctions do
 
 #function for joining new node to the network
   def newJoin(ls_lower, ls_higher, routingTable, neighborSet, curr_genServer_name, key) do
+    [ls_lower, ls_higher] = elem(currentState, 0)
+
     cond do
       Enum.count(ls_lower) == 0 and Enum.count(ls_higher) == 0 ->
         row =  curr_genServer_name |> CommonPrefix.lcp(key)
         {col, _} = Atom.to_string(key) |> String.at(row) |> Integer.parse(16)
         map_key = {row, col}
-        currentState = {[[Atom.to_string(curr_genServer_name)],[Atom.to_string(curr_genServer_name)]], 
+        currentState = {[[Atom.to_string(key)],[Atom.to_string(key)]], elem(currentState,1), elem(currentState, 2)}
+
+        state_to_send = {[[Atom.to_string(curr_genServer_name)],[Atom.to_string(curr_genServer_name)]],
                         %{map_key => Atom.to_string(curr_genServer_name)}, []}
+        [state_to_send, currentState]
       #Todo: IMP correct this condition
       Atom.to_string(key) <= Enum.max(ls_higher) and Atom.to_string(key) >= Enum.min(ls_lower) ->
-          returned_leafset = [ls_lower,ls_higher] 
+          returned_leafset = [ls_lower,ls_higher]
                             |>PastryRoute.closestLeaf(key)
                             |> GenServer.call({:final_node, key})
                             |> elem(0)
-        {returned_leafset, %{}, []}
+        state_to_send = {returned_leafset, %{}, []}
+        [state_to_send, currentState]
       true ->
         # Go to routing table
         # Returns a state
@@ -88,6 +94,7 @@ defmodule PastryInitFunctions do
               temp = Map.merge(returned_routing_table, curr_gen_s_routing_rows)
               [[[ls_lower],[ls_higher]], temp, neighborSet]
         end #end of returned_state cond-do
+        [returned_state, currentState]
     end #end of state_to_send cond-do
   end
 end

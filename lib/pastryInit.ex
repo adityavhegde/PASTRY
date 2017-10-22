@@ -74,11 +74,11 @@ use GenServer
     #2
     routing_table = received_state |> elem(1)
     IO.inspect received_state
-    routing_table 
-    |> Map.values() 
+    routing_table
+    |> Map.values()
     |> Enum.each(fn(nodeId)->
       #IO.inspect nodeId
-      nodeId = nodeId |> String.to_atom 
+      nodeId = nodeId |> String.to_atom
       GenServer.cast(nodeId, {:add_new_joined_node, newNode, nodeId})
     end)
     {:reply, :joinedNetwork, received_state}
@@ -98,9 +98,8 @@ use GenServer
   # modified_curr_node_leafset -> change to leafset of current node
   # Returns of type leafset
   def handle_call({:final_node, key, curr_genServer_name}, _, currentState) do
-    [ls_lower, ls_higher] = elem(currentState, 0)
     #{curr_genServer_name, _} = GenServer.whereis(self())
-    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(ls_lower, ls_higher, key, curr_genServer_name)
+    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(currentState, key, curr_genServer_name)
     routingTable = elem(currentState, 1)
     neighborSet = elem(currentState, 2)
     currentState = {modified_curr_node_leafset, routingTable, neighborSet}
