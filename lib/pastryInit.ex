@@ -73,7 +73,7 @@ use GenServer
     received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode}, 10000)
     #2
     routing_table = received_state |> elem(1)
-    IO.inspect received_state
+    #IO.inspect received_state
     routing_table
     |> Map.values()
     |> Enum.each(fn(nodeId)->
