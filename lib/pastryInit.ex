@@ -12,8 +12,8 @@ use GenServer
   def pastryInit(nearbyNode, numNodes) do
     #new process gets the name of its previous process
     #assumption: the newly spawned process is closer to the previously spawned
-    newNode = spawnProcess(numNodes)
-    sendJoinPastry(newNode, nearbyNode)
+    spawnProcess(numNodes)
+    #sendJoinPastry(newNode, nearbyNode)
     nearbyNode |> pastryInit(numNodes-1)
   end
 
@@ -25,8 +25,7 @@ use GenServer
     #initialize empty states
     leafSet = [[],[]]
     routingTable = %{}
-    neighborSet = []
-    {:ok, pid} = GenServer.start(__MODULE__, {leafSet, routingTable, neighborSet}, name: nodeId)
+    {:ok, pid} = GenServer.start(__MODULE__, {leafSet, routingTable}, name: nodeId)
     #nodeId = :md5 |> :crypto.hash(:erlang.pid_to_list(pid)) |> Base.encode16()
     :global.register_name(nodeId, pid)
     nodeId
@@ -49,6 +48,7 @@ use GenServer
   #The very first node in the network receives join
   #def handle_call({:join, key}, _, {[], {}, []}), do: { :reply, :null, {[], {}, []}}
 
+
   #send request form this nod
   def handle_info({curr_genServer_name, :sendRequest}, curState) do
     key =  2 * :math.pow(2,@b) |> round |> Utils.perm_rep
@@ -64,70 +64,80 @@ use GenServer
   #receive the message to route it further
   def handle_cast({:routing, curr_genServer_name, message, key}, curState) do
     PastryRoute.route(message, key, curr_genServer_name, curState)
+    {:noreply, curState}
   end
 
   # new node sends :join message to "assumed" nearby node
   # 1. Receives state tables
   # 2. Send message to all nodes in routing table. These nodes will then update their states
-  def handle_call({:joinNetwork, newNode, nearbyNode}, _, _) do
+  #def handle_call({:joinNetwork, newNode, nearbyNode}, _, _) do
     #1
-    received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode})
+  #  received_state = GenServer.call(nearbyNode, {:join, newNode, nearbyNode})
     #2
-    routing_table = received_state |> elem(1)
-    routing_table
-    |> Map.values()
-    |> Enum.each(fn(nodeId)->
+  #  routing_table = received_state |> elem(1)
+  #  routing_table
+  #  |> Map.values()
+  #  |> Enum.each(fn(nodeId)->
       #IO.inspect nodeId
-      nodeId = nodeId |> String.to_atom
-      GenServer.cast(nodeId, {:add_new_joined_node, newNode, nodeId})
-    end)
+  #    nodeId = nodeId |> String.to_atom
+  #    GenServer.cast(nodeId, {:add_new_joined_node, newNode, nodeId})
+  #  end)
+  #  global_reg_to_list = :global.registered_names
+  #  populated_map = PastryInitFunctions.update_routing_table(routing_table, newNode, global_reg_to_list -- [newNode])
+  #  routing_table = Map.merge(routing_table, populated_map)
+  #  received_state = {elem(received_state, 0), routing_table, elem(received_state, 1)}
+  #  {:reply, :joinedNetwork, received_state}
+  #end
 
-    global_reg_to_list = :global.registered_names
-    populated_map = PastryInitFunctions.populate_routing_table(routing_table, newNode, global_reg_to_list -- [newNode])
-    routing_table = Map.merge(routing_table, populated_map)
-    received_state = {elem(received_state, 0), routing_table, elem(received_state, 1)}
+  #call to update the leafset and routing table
+  def handle_call({:update, newNode}, _, curState) do
+    {leafSet, routingTable} = curState
+    populated_map = PastryInitFunctions.update_routing_table(routingTable, newNode, :global.registered_names -- [newNode])
+    routingTable = Map.merge(routingTable, populated_map)
 
-    {:reply, :joinedNetwork, received_state}
+    populatedLeafSet = PastryInitFunctions.update_leafSet(leafSet, newNode)
+    newState = {populatedLeafSet, routingTable}
+    {:reply, :updatedState, newState}
   end
-  def handle_call({:join, key, curr_genServer_name}, _, currentState) do
-    {leafSet, routingTable, neighborSet} = currentState
+
+  #def handle_call({:join, key, curr_genServer_name}, _, currentState) do
+  #  {leafSet, routingTable} = currentState
     #updated_currentState is not always updated. It is only update when there is only 1 node in network,
     #and some new node joins the network
     #Other updates to state(routing table), are performed in the end after newly joined node receives state tables
-    [state_to_send, updated_currentState] = PastryInitFunctions.newJoin(currentState, curr_genServer_name, key)
+  #  [state_to_send, updated_currentState] = PastryInitFunctions.newJoin(currentState, curr_genServer_name, key)
     #Todo: neighborSet ? when do we pick from this
-    {:reply, state_to_send, updated_currentState}
-  end
+  #  {:reply, state_to_send, updated_currentState}
+  #end
 
   # Handled when you finally reach Z or the destination node
   # Leafset is a list of 2 lists lower and higher
   # returned_leafset -> reply to caller
   # modified_curr_node_leafset -> change to leafset of current node
   # Returns of type leafset
-  def handle_call({:final_node, key, curr_genServer_name}, _, currentState) do
+  #def handle_call({:final_node, key, curr_genServer_name}, _, currentState) do
     #{curr_genServer_name, _} = GenServer.whereis(self())
-    {leafSet,_,_} = currentState
-    [ls_lower, ls_higher] =leafSet
-    [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(ls_lower, ls_higher, key, curr_genServer_name)
-    routingTable = elem(currentState, 1)
-    neighborSet = elem(currentState, 2)
-    currentState = {modified_curr_node_leafset, routingTable, neighborSet}
-    {:reply, returned_leafset, currentState}
-  end
+  #  {leafSet,_} = currentState
+  #  [ls_lower, ls_higher] =leafSet
+  #  [returned_leafset, modified_curr_node_leafset] = PastryInitFunctions.finalNodeComp(ls_lower, ls_higher, key, curr_genServer_name)
+  #  routingTable = elem(currentState, 1)
+  #  currentState = {modified_curr_node_leafset, routingTable}
+  #  {:reply, returned_leafset, currentState}
+  #end
 
-  def handle_cast({:add_new_joined_node, key, curr_genServer_name}, currentState) do
+  #def handle_cast({:add_new_joined_node, key, curr_genServer_name}, currentState) do
       #{curr_genServer_name, _} = GenServer.whereis(self())
-      row =  curr_genServer_name |> CommonPrefix.lcp(key)
-      {col, _} = Atom.to_string(key) |> String.at(row) |> Integer.parse(16)
-      routingTable = elem(currentState, 1)
-      table_val = routingTable[{row, col}]
-      value_to_update = cond do
-        table_val == nil -> Atom.to_string(key)
-        true -> Enum.random([table_val, key])
-      end
+  #    row =  curr_genServer_name |> CommonPrefix.lcp(key)
+  #    {col, _} = Atom.to_string(key) |> String.at(row) |> Integer.parse(16)
+  #    routingTable = elem(currentState, 1)
+  #    table_val = routingTable[{row, col}]
+  #    value_to_update = cond do
+  #      table_val == nil -> Atom.to_string(key)
+  #      true -> Enum.random([table_val, key])
+  #    end
       #inserts key, value if does not exist
-      routingTable = Map.update(routingTable, {row, col}, value_to_update, fn(curr_val) -> value_to_update end)
-      currentState = {elem(currentState, 0), routingTable, elem(currentState, 1)}
-      {:noreply, currentState}
-  end
+  #    routingTable = Map.update(routingTable, {row, col}, value_to_update, fn(curr_val) -> value_to_update end)
+  #    currentState = {elem(currentState, 0), routingTable, elem(currentState, 1)}
+  #    {:noreply, currentState}
+  #end
 end

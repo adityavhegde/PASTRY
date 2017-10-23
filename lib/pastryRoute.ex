@@ -1,15 +1,11 @@
 defmodule PastryRoute do
     use GenServer
     #routing algorithm
-    def route(message, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable, neighborSet}) do
-        #IO.puts [message, key]
-        #IO.inspect leafSetLeft
-        #IO.inspect leafSetRight
-        #lLow = Enum.min(leafSetRight)
-        #lHigh = Enum.max(leafSetLeft)
+    def route(message, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable}) do
         {lLow, lHigh} = Enum.min_max(leafSetLeft++leafSetRight)
+        #IO.inspect lLow
         #check for special case when leafest crosses over point 0 node ID
-        cond do 
+        cond do
             lLow > lHigh and ((key <= lLow and key <= lHigh) or (key >= lLow and key >= lHigh)) ->
                 closestLeaf(leafSetRight++leafSetLeft, key) 
                 |> String.to_atom
@@ -20,7 +16,6 @@ defmodule PastryRoute do
                 |> GenServer.cast({:finalNode, message, key})
             true ->
             #use the routing table
-                #{name, _} = GenServer.whereis(self())
                 name = curr_genServer_name
                 #get length of prefix shared among and use it to access row of routing table
                 l = name |> CommonPrefix.lcp(String.to_atom(key))
@@ -31,15 +26,21 @@ defmodule PastryRoute do
                     |> Map.get({l, dl})
                     |> String.to_atom
                     |> GenServer.cast({:routing, curr_genServer_name, message, key})
-                else 
-                    IO.puts "nothing found"
+                else
                     #rare case
-                    #allUnion = (leafSetLeft ++ leafSetRight ++ Map.values(routingTable) ++ neighborSet)
-                    #            |> Enum.uniq
-                    #rareCase(allUnion, l, name, key) 
-                    #|> Enum.random
-                    #|> String.to_atom
-                    #|> GenServer.cast({:routing, message})
+                    allUnion = (leafSetLeft ++ leafSetRight ++ Map.values(routingTable))
+                                |> Enum.uniq
+                    nodeToRoute = rareCase(allUnion, l, name, key) 
+                    cond do
+                        nodeToRoute != [] ->
+                            selectedNode = nodeToRoute
+                                            |> Enum.random
+                                            |> String.to_atom
+                            selectedNode |> GenServer.cast({:routing, selectedNode, message, key})
+                        true ->
+                            IO.puts "reached final node"
+                    end
+                    
                 end
         end
     end
@@ -53,7 +54,7 @@ defmodule PastryRoute do
     end
 
     def rareCase(allUnion, l, name, key) do
-        a = name
+        a = name |> Atom.to_string |> Integer.parse(16) |> elem(0)
         d = key |> Integer.parse(16) |> elem(0)
         Enum.filter(allUnion, fn(x) ->
             abs((x |> Integer.parse(16) |> elem(0)) - d) < abs(a-d) and
