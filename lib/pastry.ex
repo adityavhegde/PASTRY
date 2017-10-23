@@ -5,6 +5,7 @@ defmodule Pastry do
     {:reply, numHops, {totalRequests, numHops, boss}}
   end
 
+  #wrapper function to create network and run requests
   def callAPIs(numNodes, numRequests) do
     PastryInit.pastryInit(numNodes)
     Enum.each(:global.registered_names, fn(actor) ->

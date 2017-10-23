@@ -1,3 +1,4 @@
+#module for pastry functions
 defmodule PastryInitFunctions do
     use GenServer
   #returns a routing table which should be merged with callers rotuing table
@@ -33,6 +34,7 @@ defmodule PastryInitFunctions do
     |> Enum.into(%{})
   end
 
+  #function to update leafset
   def update_leafSet(leafSet, newNode) do
     global_reg = :global.registered_names |> Enum.sort
     nodePos = Enum.find_index(global_reg, fn(x) -> x == newNode end)

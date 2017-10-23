@@ -3,7 +3,6 @@ defmodule PastryRoute do
     #routing algorithm
     def route(numHops, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable}) do
         {lLow, lHigh} = Enum.min_max(leafSetLeft++leafSetRight)
-        #IO.inspect lLow
         #check for special case when leafest crosses over point 0 node ID
         cond do
             lLow > lHigh and ((key <= lLow and key <= lHigh) or (key >= lLow and key >= lHigh)) ->
@@ -52,6 +51,7 @@ defmodule PastryRoute do
         end)
     end
 
+    #function for rare cases
     def rareCase(allUnion, l, name, key) do
         a = name |> Atom.to_string |> Integer.parse(16) |> elem(0)
         d = key |> Integer.parse(16) |> elem(0)

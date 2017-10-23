@@ -10,10 +10,7 @@ use GenServer
   #spawning actors
   def pastryInit(_, 0), do: true
   def pastryInit(nearbyNode, numNodes) do
-    #new process gets the name of its previous process
-    #assumption: the newly spawned process is closer to the previously spawned
     spawnProcess(numNodes)
-    #sendJoinPastry(newNode, nearbyNode)
     nearbyNode |> pastryInit(numNodes-1)
   end
 
@@ -31,8 +28,6 @@ use GenServer
   end
 
   def init(state) do
-    #tell yourself to send a request every @interval
-    #Process.send_after(self(), :sendRequest, @interval)
     {:ok, state}
   end
 
@@ -50,9 +45,7 @@ use GenServer
   
   #receive the message as the final node
   def handle_cast({:finalNode, numHops, _}, curState) do
-    #IO.puts "reached final node"
     send :masterProcess, numHops
-    #IO.puts numHops
     {:noreply, curState}
   end
   #receive the message to route it further
