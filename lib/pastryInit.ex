@@ -50,8 +50,9 @@ use GenServer
   
   #receive the message as the final node
   def handle_cast({:finalNode, numHops, _}, curState) do
-    IO.puts "reached final node"
-    IO.puts numHops
+    #IO.puts "reached final node"
+    send :masterProcess, numHops
+    #IO.puts numHops
     {:noreply, curState}
   end
   #receive the message to route it further

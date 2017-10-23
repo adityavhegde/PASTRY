@@ -38,7 +38,7 @@ defmodule PastryRoute do
                                             |> String.to_atom
                             selectedNode |> GenServer.cast({:routing, selectedNode, numHops+1, key})
                         true ->
-                            IO.puts "can't go any further"
+                            curr_genServer_name |> GenServer.cast({:finalNode, numHops, key})
                     end
                 end
         end
