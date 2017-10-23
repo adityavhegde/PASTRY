@@ -1,15 +1,32 @@
 defmodule Pastry do
-  def setInitialNetwork(numNodes) do
+  use GenServer
+  def handle_call({numNodes, numRequests}, _, numHops) do
+    Pastry.callAPIs(numNodes, numRequests)
+    {:reply, numHops, numHops}
+  end
+
+  def callAPIs(numNodes, numRequests) do
     PastryInit.pastryInit(numNodes)
     #IO.inspect :global.registered_names
     Enum.each(:global.registered_names, fn(actor) ->
       GenServer.call(actor, {:update, actor})
-      #GenServer.cast(actor, :sendRequest)
+      IO.puts "updated"
+      IO.inspect actor
     end)
     Enum.each(:global.registered_names, fn(actor) ->
-      send actor, {actor, :sendRequest}
-      #GenServer.cast(actor, :sendRequest)
+      send actor, {actor, :sendRequest, numRequests}
     end)
+    #receive do
+    #  :ok ->
+    #    true
+    #end
+  end
+
+  def handle_cast(newNumHops, numHops) do
+    {:noreply, numHops+newNumHops}
+  end 
+  def init(numHops) do
+    {:ok, numHops}
   end
 
   def main(args) do
@@ -25,7 +42,10 @@ defmodule Pastry do
                   |> Integer.parse(10)
                   |> elem(0)
 
-    setInitialNetwork(numNodes)
+
+    {:ok, _} = GenServer.start(__MODULE__, 0, name: :masterProcess)
+    GenServer.call(:masterProcess, {numNodes, numRequests}, :infinity)
+    #IO.puts "total Hops #{totalHops}"
 
     receive do
       :over ->

@@ -1,7 +1,7 @@
 defmodule PastryRoute do
     use GenServer
     #routing algorithm
-    def route(message, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable}) do
+    def route(numHops, key, curr_genServer_name, {[leafSetLeft, leafSetRight], routingTable}) do
         {lLow, lHigh} = Enum.min_max(leafSetLeft++leafSetRight)
         #IO.inspect lLow
         #check for special case when leafest crosses over point 0 node ID
@@ -9,11 +9,11 @@ defmodule PastryRoute do
             lLow > lHigh and ((key <= lLow and key <= lHigh) or (key >= lLow and key >= lHigh)) ->
                 closestLeaf(leafSetRight++leafSetLeft, key) 
                 |> String.to_atom
-                |> GenServer.cast({:finalNode, message})
+                |> GenServer.cast({:finalNode, numHops+1})
             key >= lLow and key <= lHigh ->
                 closestLeaf(leafSetRight++leafSetLeft, key) 
                 |> String.to_atom
-                |> GenServer.cast({:finalNode, message, key})
+                |> GenServer.cast({:finalNode, numHops+1, key})
             true ->
             #use the routing table
                 name = curr_genServer_name
@@ -25,7 +25,7 @@ defmodule PastryRoute do
                     routingTable 
                     |> Map.get({l, dl})
                     |> String.to_atom
-                    |> GenServer.cast({:routing, curr_genServer_name, message, key})
+                    |> GenServer.cast({:routing, curr_genServer_name, numHops+1, key})
                 else
                     #rare case
                     allUnion = (leafSetLeft ++ leafSetRight ++ Map.values(routingTable))
@@ -36,11 +36,10 @@ defmodule PastryRoute do
                             selectedNode = nodeToRoute
                                             |> Enum.random
                                             |> String.to_atom
-                            selectedNode |> GenServer.cast({:routing, selectedNode, message, key})
+                            selectedNode |> GenServer.cast({:routing, selectedNode, numHops+1, key})
                         true ->
-                            IO.puts "reached final node"
+                            IO.puts "can't go any further"
                     end
-                    
                 end
         end
     end
